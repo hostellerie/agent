@@ -37,11 +37,35 @@ function AGENT_getPublicCapabilitiesData()
         }
 
         $providers[$provider] = array(
+            'provider_family' => 'content',
             'type' => isset($definition['resource_type']) ? $definition['resource_type'] : '',
             'label' => isset($definition['label']) ? $definition['label'] : $provider,
             'capabilities' => array_values($capabilities),
             'representations' => array('markdown', 'json')
         );
+    }
+
+    if (function_exists('AGENT_getNavigationProviderCatalog')) {
+        foreach (AGENT_getNavigationProviderCatalog() as $provider => $definition) {
+            if (!AGENT_navigationProviderAvailable($provider)) {
+                continue;
+            }
+
+            $capabilities = AGENT_getNavigationCapabilities($provider);
+            foreach ($capabilities as $capability) {
+                if (!in_array($capability, $siteCapabilities, true)) {
+                    $siteCapabilities[] = $capability;
+                }
+            }
+
+            $providers[$provider] = array(
+                'provider_family' => 'navigation',
+                'type' => isset($definition['type']) ? $definition['type'] : 'navigation',
+                'label' => isset($definition['label']) ? $definition['label'] : $provider,
+                'capabilities' => array_values($capabilities),
+                'representations' => array('json')
+            );
+        }
     }
 
     $hubCapabilities = function_exists('AGENT_getHubCapabilities')
@@ -62,7 +86,8 @@ function AGENT_getPublicCapabilitiesData()
         'representations' => array(
             'discovery' => 'llms.txt',
             'resource' => array('markdown', 'json'),
-            'collection' => array('json')
+            'collection' => array('json'),
+            'navigation' => array('json')
         ),
         'providers' => $providers
     );
