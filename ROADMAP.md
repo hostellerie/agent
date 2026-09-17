@@ -4,11 +4,9 @@
 
 Agent is the **provider-neutral machine access layer** for Geeklog.
 
-It exposes site content and capabilities to AI assistants, LLMs, agents, MCP clients, automation tools and future machine consumers without requiring those consumers to know Geeklog tables, plugin internals or theme HTML.
+It exposes site content, structured navigation, service capabilities and future authorized actions to AI assistants, LLMs, agents, MCP clients, automation tools and other machine consumers without requiring those consumers to know Geeklog tables, plugin internals or theme HTML.
 
 Agent does **not** own content and does **not** replace Hub.
-
-The architectural split is:
 
 ```text
 Hub       = context / relationships
@@ -16,11 +14,57 @@ Agent     = machine access layer
 Connector = client/provider adapter
 ```
 
-Agent consumes shared Geeklog contracts and delegates business logic to the owning Core feature or plugin.
-
-Agent is intended to **replace standalone LLM-discovery scripts autonomously**, not reproduce their implementation or preserve their historical structure. Existing `llms.php`, `llm-dynamic.php`, per-host switches and hand-maintained text files are reference material for identifying useful requirements only. They are not compatibility targets.
+Agent consumes shared Geeklog contracts and delegates business logic, visibility and permissions to the owning Core feature or plugin.
 
 Agent's internal model must remain stable and provider-neutral. MCP, ChatGPT, REST/OpenAPI and future protocols are adapters over that model and must not define it.
+
+---
+
+## Current implementation status
+
+The code is ahead of the original milestone numbering. The roadmap therefore distinguishes **implemented**, **partial** and **planned** work instead of implying that every numbered milestone is still future work.
+
+### Implemented now
+
+- installable Geeklog plugin foundation;
+- `agent.admin` permission and administration UI;
+- Configuration Manager integration;
+- PHP 5.6-compatible runtime style;
+- multisite-safe site namespace and cache-path foundation;
+- automated compatibility/build workflows and installable `dist/` archive;
+- provider-neutral resource schema v1 through `AGENT_RESOURCE_SCHEMA_VERSION`;
+- resource normalization and stable `provider:type:id` identity;
+- provider layer using Geeklog interoperability contracts;
+- Stories provider;
+- Static Pages provider;
+- permission-aware item retrieval through `PLG_getItemInfo()`;
+- permission-aware provider collections where supported;
+- public Markdown resource representation;
+- public JSON resource representation;
+- public JSON collection representation;
+- autonomous machine-discovery output generated from active site context;
+- public capability discovery with schema version 1;
+- provider capability reporting (`content.read`, `content.collection` where supported);
+- HTML machine-discovery integration;
+- optional Hub service discovery/invocation through `PLG_invokeService()`;
+- Hub capability reporting for compatible read-only services.
+
+### Partial / needs hardening
+
+- `/llms.txt` deployment/routing convention: generator exists, deployment integration must be validated on real sites;
+- provider collections: `limit` and `modified-desc` are implemented, broader filter/order contract remains incomplete;
+- capability discovery: implemented for current content providers and Hub, but provider families beyond content are not yet generalized;
+- Hub integration: service detection/invocation exists, but richer normalized Hub result surfaces remain to be completed;
+- multisite hardening: site namespace exists, full multi-site validation matrix remains required;
+- cache/performance layer: cache path exists, complete lifecycle/ETag/invalidation/rate-limit work remains;
+- search/retrieval aggregation remains incomplete;
+- broader plugin coverage remains incomplete.
+
+### Planned next architectural step
+
+Generalize Agent providers beyond editorial content so that plugins can expose **structured capabilities** without pretending to be `PLG_getItemInfo()` content providers.
+
+The first reference case is Menu 1.4.0, which now exposes a versioned, permission-aware `MENU_getResolvedTree()` contract.
 
 ---
 
@@ -43,59 +87,55 @@ Implementation must use the common safe PHP 5.6–8.3 subset and feature-detect 
 
 1. **Agent is provider-neutral.** No ChatGPT-, Claude-, Gemini- or MCP-specific assumptions in the core data model.
 2. **The owning plugin remains authoritative.** Agent does not duplicate another plugin's tables, ACL, routing or business logic.
-3. **Use shared Geeklog contracts first.** Prefer Plugin API, Item Info, services and capability discovery over direct SQL.
+3. **Use shared Geeklog contracts first.** Prefer Plugin API, Item Info, services, versioned plugin contracts and capability discovery over direct SQL.
 4. **Direct SQL is a compatibility fallback only.** Legacy adapters may be used for Core/old plugins when no suitable API exists, and should be isolated for later removal.
 5. **Hub owns relationships.** Agent consumes Hub services for context, related items, dependency information, integrity reports and suggestions.
-6. **Connector is an adapter.** ChatGPT-specific or other client-specific schemas belong outside Agent core.
+6. **Connector is an adapter.** Client-specific schemas belong outside Agent core.
 7. **Public discovery is separate from authenticated actions.** `llms.txt` and public resources must not imply write authorization.
-8. **Permissions are evaluated before exposure.** Draft/private/inaccessible content must not leak through lists, search, popularity rankings or machine endpoints.
-9. **Multisite context is mandatory.** Configuration, cache, credentials and audit data must remain site-scoped.
-10. **One normalized representation, many adapters.** Markdown, JSON, `llms.txt`, MCP and future protocols should reuse the same internal resource model.
-11. **Resources, Capabilities and Actions are distinct.** Resources are readable objects, Capabilities describe what the site/provider can do, and Actions are operations the current caller is authorized to trigger.
-12. **Protocol adapters must not define Agent core.** MCP, ChatGPT, REST/OpenAPI and future protocol details belong above the normalized Agent model.
-13. **Visible configuration must match implemented behavior.** Future roadmap features must not appear as active administrator controls before they exist, except read-only diagnostics.
-14. **The previous standalone LLM system is not an API contract.** Agent may improve, reorganize or omit historical output when a cleaner machine-facing representation is more useful.
-15. **Autonomy is a release requirement.** Agent 1.0 must not require the old `llms.php`, `llm-dynamic.php`, hostname registry or per-site LLM text files to operate.
+8. **Permissions are evaluated before exposure.** Draft/private/inaccessible content or navigation must not leak through lists, search, trees, rankings or machine endpoints.
+9. **Do not broaden visibility.** If an owning plugin returns a permission-filtered result, Agent may further restrict it but must never reconstruct or enlarge the hidden set from plugin tables.
+10. **Multisite context is mandatory.** Configuration, cache, credentials and audit data must remain site-scoped.
+11. **One normalized representation, many adapters.** Markdown, JSON, `llms.txt`, MCP and future protocols should reuse stable Agent models.
+12. **Resources, Capabilities and Actions are distinct.** Resources are readable objects, Capabilities describe what a provider/context can do, and Actions are operations the current caller is authorized to trigger.
+13. **Provider families are allowed.** Not every provider is an editorial content provider. Navigation, relationship and service providers may expose their own versioned representations through Agent.
+14. **Protocol adapters must not define Agent core.** MCP, ChatGPT, REST/OpenAPI and future protocol details belong above Agent's normalized models.
+15. **Visible configuration must match implemented behavior.** Future features must not appear as active controls before they exist, except read-only diagnostics.
+16. **Autonomy is a release requirement.** Agent 1.0 must not require legacy LLM scripts, hostname registries or per-site LLM text files.
 
 ---
 
-# 0.1.0 — Installable foundation
+# 0.1.0 — Installable foundation — IMPLEMENTED
 
-Goal: create a clean Geeklog plugin skeleton that can be installed safely on the full compatibility matrix.
+Implemented foundation includes:
 
 - Geeklog autoinstall/uninstall support;
-- plugin metadata and `plugin.json` following Memorandum conventions;
-- `agent.admin` permission and Agent Admin group;
-- minimal Configuration Manager integration;
-- admin entry and basic status/diagnostic page;
-- no PHP syntax newer than PHP 5.6;
-- feature detection for Geeklog 2.1.1 vs 2.2.2 APIs;
+- plugin metadata and `plugin.json`;
+- `agent.admin` and Agent Admin group;
+- Configuration Manager integration;
+- administration/status diagnostics;
+- PHP 5.6-compatible implementation style;
+- capability detection for Geeklog APIs;
 - multisite-safe configuration loading;
-- site-scoped namespace for future cache/storage needs;
-- initial automated compatibility checks;
-- automated installable archive generation in `dist/`;
-- no file or directory beginning with `.` inside the installable archive;
-- modern page rendering through `COM_createHTMLDocument()`;
-- `.thtml` templates for significant presentation markup;
-- automated guard preventing reintroduction of `COM_siteHeader()` / `COM_siteFooter()` in Agent runtime code.
+- site-scoped namespace/cache-path foundation;
+- automated compatibility/build workflows;
+- installable archive in `dist/`;
+- archive rule excluding packaged entries whose names begin with `.`;
+- modern document rendering and `.thtml` administration presentation.
 
-Visible configuration in 0.1.0 should remain limited to settings that already affect implemented behavior. Future Discovery, Providers, Resources, Capabilities and Cache controls should appear only when their corresponding milestone is implemented.
-
-Diagnostic information may expose detected runtime capabilities because it reports environment state rather than enabling unfinished features.
+Remaining foundation work belongs to compatibility/security hardening rather than feature creation.
 
 ---
 
-# 0.2.0 — Normalized resource model
+# 0.2.0 — Normalized resource model — IMPLEMENTED BASELINE
 
-Goal: define the internal representation reused by every output format and protocol adapter.
-
-Initial normalized fields/concepts:
+`lib/resource.php` provides schema version 1 and normalized fields including:
 
 ```text
+schema_version
+provider
 id
 type
 subtype
-provider
 title
 url
 canonical_url
@@ -111,292 +151,186 @@ category
 topic
 hits
 visibility
+capabilities
+```
+
+Current guarantees:
+
+- explicit provider ownership;
+- stable normalized identity;
+- provider data cannot override Agent-owned identity fields;
+- canonical URL fallback;
+- safe handling of missing optional fields;
+- normalized capability lists;
+- no raw database row exposure through the normalized model.
+
+Future resource-schema changes should remain additive within schema v1 where practical. Breaking semantic/type changes require a new schema version.
+
+---
+
+# 0.3.0 — Provider layer — IMPLEMENTED FOR CONTENT, EXPANSION ACTIVE
+
+Current content providers:
+
+```text
+stories
+staticpages
+```
+
+Current provider behavior:
+
+- availability detection;
+- single-resource retrieval;
+- collection retrieval where supported;
+- `PLG_getItemInfo()` as permission gate;
+- normalized provider capabilities;
+- editorial content/excerpt compatibility enrichment only after authorization;
+- bounded collection size;
+- `modified-desc` sorting.
+
+## Provider families
+
+Agent must now generalize the provider registry so it does not assume every useful plugin contract maps to `PLG_getItemInfo()`.
+
+Target families:
+
+```text
+content       editorial/addressable resources
+navigation    structured navigation/trees
+relationship contextual graph/relationships
+service       bounded plugin services/capabilities
+```
+
+Each family may use a different owning-plugin contract while sharing common discovery, permission and adapter rules.
+
+### Menu reference integration
+
+Menu must be integrated as a **navigation provider**, not forced into the content model.
+
+Preferred source contract:
+
+```text
+MENU_getResolvedTree($name)
+MENU_getResolvedTreeContractVersion()
+```
+
+Expected Agent capabilities:
+
+```text
+navigation.read
+navigation.tree
+```
+
+Rules:
+
+- feature-detect the Menu functions;
+- require a supported resolved-tree contract version;
+- consume the tree exactly as filtered by Menu for the current request/user context;
+- never query `menu`, `menu_elements` or Menu ACL tables to reconstruct hidden nodes;
+- never expose raw Menu group/owner/permission internals;
+- preserve Menu's contract version as provider metadata;
+- treat future Menu fields additively and ignore unknown fields;
+- keep navigation representation distinct from the editorial resource schema unless a clean generic envelope is useful;
+- do not infer write authorization from `navigation.read` or `navigation.tree`.
+
+See `docs/provider-integration-guide.md`.
+
+---
+
+# 0.4.0 — Autonomous public discovery — IMPLEMENTED BASELINE
+
+`AGENT_buildLlmsText()` already generates machine-discovery output from the active Geeklog context and enabled providers.
+
+Implemented:
+
+- no hostname switch registry;
+- no runtime dependency on legacy per-site LLM text files;
+- site description fallback;
+- recent resources from enabled providers;
+- canonical resource links;
+- links to Markdown/JSON representations;
+- capability endpoint discovery;
+- graceful empty-provider behavior.
+
+Remaining:
+
+- validate canonical `/llms.txt` deployment/routing on supported installations;
+- richer curated/featured semantics;
+- broader provider families such as navigation;
+- cache lifecycle/invalidation.
+
+---
+
+# 0.5.0 — Markdown resources — IMPLEMENTED BASELINE
+
+Agent already exposes clean Markdown resource representations for supported content providers.
+
+Continue validating:
+
+- no theme chrome;
+- no inaccessible/private content;
+- stable headings and metadata;
+- UTF-8 behavior;
+- safe caching/public headers.
+
+Navigation providers may use JSON first; a Markdown tree representation should be added only if it improves machine consumption without duplicating HTML navigation.
+
+---
+
+# 0.6.0 — JSON resources and collections — IMPLEMENTED BASELINE
+
+Implemented public surfaces include individual resources and provider collections.
+
+Current collection support includes bounded `limit` and `modified-desc` ordering where the provider supports collections.
+
+Remaining:
+
+- broader collection filters (`since`, `until`, `ids`, taxonomy, author, subtype);
+- pagination conventions;
+- additional ordering (`created-desc`, `hits-desc`) where meaningful;
+- navigation JSON surface for Menu and future structured providers.
+
+---
+
+# 0.7.0 — Capability discovery — IMPLEMENTED BASELINE
+
+Agent already exposes public read-only capability data with:
+
+```text
 schema_version
+mode
 capabilities
+representations
+providers
+integrations
+canonical_site
 ```
 
-Not every provider must supply every field.
-
-Requirements:
-
-- stable `type + id` identity;
-- explicit owning `provider`;
-- canonical URL distinct from temporary/request URLs where necessary;
-- explicit language where available;
-- clean text/content separate from theme chrome;
-- optional popularity metric normalized as `hits`;
-- permission-aware effective visibility/access state;
-- versionable normalized representation through `schema_version`;
-- resource/provider capabilities expressible without protocol-specific schemas;
-- support one item and collections;
-- safe handling of absent/unsupported fields;
-- no direct exposure of raw database rows.
-
-The model must distinguish:
-
-```text
-Resources     = what a machine can read or retrieve
-Capabilities  = what the site/provider/context can do
-Actions       = operations the current caller is authorized to trigger
-```
-
-Define collection options compatible with the Memorandum:
-
-```text
-since
-until
-limit
-order
-ids
-author
-topic
-category
-subtype
-```
-
-Initial ordering support:
-
-```text
-modified-desc
-created-desc
-hits-desc
-```
-
-No public Markdown/JSON/MCP output is required merely to complete the normalized model milestone.
-
----
-
-# 0.3.0 — Provider layer
-
-Goal: decouple Agent from storage details.
-
-Introduce a provider interface compatible with PHP 5.6.
-
-Conceptual responsibilities:
-
-```text
-get item
-get collection
-search
-capabilities
-canonical URL
-permission filtering
-```
-
-Provider classes should be registered/detected without hard-coding hostname-specific behavior.
-
-Two provider categories:
-
-### Native providers
-
-Use shared Geeklog/plugin contracts such as:
-
-- `PLG_getItemInfo()` / `plugin_getiteminfo_*()`;
-- `plugin_idtourl_*()` where available;
-- `plugin_dopluginsearch_*()` where useful;
-- `PLG_invokeService()` for specialized capabilities;
-- generic capability descriptors when available.
-
-### Compatibility providers
-
-Isolated adapters for content that cannot yet satisfy the shared contract.
-
-Initial compatibility providers:
-
-- Stories;
-- Static Pages;
-- Topics/taxonomy where required for discovery.
-
-Compatibility adapters must preserve:
-
-- Geeklog permissions;
-- topic access;
-- language filtering where supported;
-- draft/scheduled publication rules;
-- canonical URL behavior.
-
-Compatibility providers exist to bridge Geeklog/plugin API gaps, **not** to preserve the old standalone scripts.
-
-Provider-related Configuration Manager controls may be introduced in this milestone because provider discovery/selection now has real runtime behavior.
-
----
-
-# 0.4.0 — Autonomous public discovery
-
-Goal: provide a better, self-contained replacement for the current standalone `llms.php` / `llm-dynamic.php` mechanism.
-
-Agent becomes the owner of public machine-discovery generation for the active Geeklog site.
-
-Canonical public resource:
-
-```text
-/llms.txt
-```
-
-Optional convenience alias:
-
-```text
-/llm.txt -> /llms.txt
-```
-
-Requirements:
-
-- generated from the active Geeklog site context;
-- no hard-coded hostname switch;
-- no dependency on legacy LLM files or scripts;
-- useful default output immediately after installation;
-- optional site-specific editorial summary in Configuration Manager;
-- automatic discovery of useful public resources where possible;
-- include selected main resources rather than dump the whole site;
-- include canonical sitemap/feed links where configured or discoverable;
-- include recent/popular/featured collections when useful and supported;
-- link to richer Agent Markdown/JSON resources when those later surfaces exist;
-- cache output per site when cache support is implemented;
-- invalidate cache when relevant configuration/content changes where practical;
-- remain useful when Hub is absent;
-- degrade gracefully when a plugin exposes only part of the interoperability contract.
-
-Distinguish clearly:
-
-```text
-recent   = newest/most recently modified
-popular  = highest hits where supported
-featured = explicitly curated important resources
-```
-
-Do not infer `featured` from modification date.
-
-The structure and wording of legacy `ecologie.txt`, `cordiste.txt` or similar files are not requirements. Site description, curated resources and dynamic discovery should be modeled natively in Agent configuration and provider data.
-
-Discovery-related Configuration Manager controls should be introduced here, when `/llms.txt` actually exists.
-
-`llms.txt` remains a discovery/curation surface, not Agent's source of truth. Agent's normalized model must remain useful if discovery conventions change in the future.
-
----
-
-# 0.5.0 — Markdown resources
-
-Goal: provide clean LLM-readable content representations.
-
-Conceptual routes:
-
-```text
-/agent/resource/{type}/{id}.md
-```
-
-or an equivalent Geeklog-safe routing scheme.
-
-Markdown output should contain, when available:
-
-- title;
-- canonical URL;
-- short metadata header;
-- excerpt;
-- clean body/content;
-- author;
-- language;
-- created/modified dates;
-- taxonomy;
-- related-resource links where available.
-
-Requirements:
-
-- no theme navigation/chrome;
-- no admin-only information;
-- no hidden/private content leakage;
-- stable machine-readable headings;
-- UTF-8 output;
-- cacheable public responses where appropriate.
-
-Markdown enable/disable controls should appear only from this milestone onward.
-
----
-
-# 0.6.0 — JSON resources and collections
-
-Goal: expose the same normalized model for structured clients.
-
-Conceptual read-only routes:
-
-```text
-/agent/resource/{type}/{id}.json
-/agent/resources/{type}.json
-```
-
-Collection operations should support, where the provider supports them:
-
-```text
-limit
-order
-since
-search/topic/category filters
-```
-
-Initial collection use cases:
-
-- recent content;
-- popular content;
-- featured content;
-- content by type;
-- selected taxonomy collections.
-
-JSON schemas should remain stable and provider-neutral.
-
-JSON enable/disable controls should appear only from this milestone onward.
-
----
-
-# 0.7.0 — Capability discovery
-
-Goal: let machine clients discover what the current site and authenticated/public context can actually provide.
-
-Detect standard capabilities from existing Geeklog APIs first.
-
-Examples:
+Current content capabilities include:
 
 ```text
 content.read
 content.collection
-content.search
-content.popular
-content.related
-content.url.resolve
-services.available
 ```
 
-Discovery order:
+Hub capabilities are added when compatible services are detected.
 
-```text
-1. infer existing Plugin API capabilities
-2. inspect normal Geeklog service/webservice support
-3. use shared capability descriptors when inference is insufficient
-4. avoid Agent-specific callbacks in content plugins
-```
+Next capability-discovery work:
 
-Conceptual endpoint:
-
-```text
-/agent/capabilities
-```
-
-For 1.0, expose read-only/public capabilities only unless authenticated access has explicitly been implemented.
-
-Capability metadata should be reusable by future:
-
-- JSON/OpenAPI descriptions;
-- MCP tools/resources;
-- ChatGPT Connector tool generation;
-- administration interoperability audits.
-
-Capability controls should appear in Configuration Manager only once capability discovery has real runtime behavior.
+- support provider family/type metadata;
+- advertise navigation providers such as Menu;
+- expose `navigation.read` and `navigation.tree` only when Menu is active and its resolved-tree contract is available;
+- preserve owning-provider schema/contract version metadata;
+- keep public capability discovery read-only;
+- prepare the same capability model for future MCP/OpenAPI/Connector adapters.
 
 ---
 
-# 0.8.0 — Hub integration
+# 0.8.0 — Hub integration — IMPLEMENTED SERVICE FOUNDATION
 
-Goal: consume Hub context without duplicating Hub.
+Agent already detects and invokes compatible Hub services through normal Geeklog service APIs without reading Hub tables.
 
-When Hub is installed and exposes services, Agent may surface:
+Current mapped capabilities:
 
 ```text
 hub.context.read
@@ -406,31 +340,26 @@ hub.integrity.read
 hub.suggestions.read
 ```
 
-Agent must call Hub's public/shared service surface.
+Remaining:
 
-Agent must not:
-
-- access Hub relationship tables directly;
-- maintain a second graph;
-- reproduce orphan/dependency algorithms;
-- silently create editorial relationships.
-
-Agent remains fully usable when Hub is not installed.
+- normalize useful Hub service outputs for machine consumers;
+- expose richer context bundles where appropriate;
+- validate permission/error behavior across supported Geeklog versions.
 
 ---
 
-# 0.9.0 — Search and retrieval
+# 0.9.0 — Search and retrieval — PLANNED / PARTIAL
 
-Goal: give machine consumers useful retrieval without requiring raw database access.
+Goal: aggregate useful machine retrieval without raw database access.
 
-Initial search model:
+Planned:
 
-- use plugin/Core search APIs where practical;
-- aggregate normalized results by provider;
-- enforce the current site's permissions;
-- support bounded result counts;
-- return stable identities and canonical URLs;
-- expose snippets/excerpts rather than full content unless requested separately.
+- plugin/Core search APIs where practical;
+- normalized aggregated search results;
+- permission enforcement per provider;
+- bounded counts;
+- stable identities and canonical URLs;
+- snippets by default, full content separately.
 
 Potential capabilities:
 
@@ -441,49 +370,55 @@ content.popular
 content.featured
 ```
 
-Semantic/vector search is explicitly **not required for 1.0**. It may be added later as an optional provider-neutral layer.
+Semantic/vector search is not required for 1.0.
 
 ---
 
-# 0.10.0 — Multisite hardening
+# 0.10.0 — Multisite hardening — FOUNDATION IMPLEMENTED, VALIDATION REQUIRED
 
-Goal: prove safe operation with shared plugin files and multiple Geeklog sites.
+Already present:
 
-Validate:
+- active-site Configuration Manager state;
+- site namespace derived from site-specific values;
+- site-scoped cache path foundation;
+- active plugin detection.
 
-- site-specific Configuration Manager values;
-- site-specific `$_TABLES` mappings;
-- active plugin set per site;
+Still validate:
+
+- different `$_TABLES` mappings;
 - permissions per site;
-- cache key isolation;
-- no host switch registry as source of truth;
-- safe shared-file upgrades;
-- no cross-site credential or audit leakage;
-- independent enable/disable state where supported by Geeklog deployment model.
+- cache isolation;
+- shared-file staggered upgrades;
+- no cross-site credential/audit leakage;
+- provider availability differing by site;
+- Menu/navigation results differing correctly by site and user context.
 
 The active Geeklog site context is authoritative.
 
 ---
 
-# 0.11.0 — Performance, cache and observability
+# 0.11.0 — Performance, cache and observability — PLANNED / PARTIAL
 
-Goal: keep public machine endpoints inexpensive enough for real-world crawling and agent use.
+Current foundation:
 
-- per-site cache;
-- bounded collection sizes;
-- avoid N+1 provider queries;
-- ETag/Last-Modified support where safe/practical;
-- cache invalidation after content lifecycle events where available;
-- basic request/error logging;
-- optional rate limiting hooks;
-- safe diagnostics for administrators;
-- no sensitive implementation details in public errors.
+- bounded provider collection sizes;
+- site-scoped cache path helper;
+- public short-lived cache headers on current resource endpoints.
 
-Cache-specific Configuration Manager controls should appear in this milestone when a cache lifecycle actually exists.
+Remaining:
+
+- actual per-site cache lifecycle;
+- ETag/Last-Modified where safe;
+- invalidation after lifecycle events;
+- avoid N+1 provider work;
+- request/error logging;
+- optional rate-limit hooks;
+- safe administrator diagnostics;
+- no sensitive details in public errors.
 
 ---
 
-# 0.12.0 — Compatibility and security audit
+# 0.12.0 — Compatibility and security audit — REQUIRED BEFORE 1.0
 
 Test matrix:
 
@@ -498,12 +433,14 @@ Validate mono-site and multisite scenarios.
 
 Security checks:
 
-- permissions on every provider path;
-- no draft/private content leakage;
+- permission enforcement on every provider path;
+- no draft/private/inaccessible leakage;
+- no hidden navigation leakage;
+- no raw ACL/group/owner metadata from Menu;
 - no direct arbitrary SQL endpoint;
 - no arbitrary PHP/shell/filesystem execution;
-- output escaping/encoding by format;
-- request bounds;
+- output encoding by format;
+- bounded requests;
 - no implicit write actions;
 - safe errors;
 - multisite isolation.
@@ -517,23 +454,19 @@ Security checks:
 - install on Geeklog 2.1.1–2.2.2;
 - run on PHP 5.6–8.3;
 - operate mono-site and multisite;
-- generate useful `/llms.txt` output autonomously from the active site context;
-- require no legacy `llms.php`, `llm-dynamic.php`, hostname switch or per-site LLM text file;
+- generate useful machine-discovery output autonomously;
 - expose clean Markdown resources;
-- expose structured JSON resources;
-- list recent/popular/featured content where supported;
-- expose/read capabilities;
-- use native provider contracts when available;
-- use isolated compatibility providers only where Geeklog/plugin APIs require them;
+- expose structured JSON resources and collections;
+- expose public capability discovery;
+- use native plugin contracts where available;
 - consume Hub services without duplicating Hub;
-- enforce permissions consistently;
+- consume at least one non-content structured provider (Menu is the preferred reference case);
+- enforce provider-owned permissions consistently;
+- avoid direct plugin SQL where a shared contract exists;
 - cache safely per site;
-- provide sensible defaults so a newly installed site is useful before extensive manual configuration;
 - ship tests and installation/upgrade documentation.
 
 No authenticated write capability is required for 1.0.
-
-The old standalone LLM-discovery implementation may be removed once Agent is deployed because it is no longer part of Agent's runtime architecture or compatibility contract.
 
 ---
 
@@ -551,6 +484,8 @@ Target modernized plugins such as:
 - Store where public product/resource exposure is appropriate.
 
 Prefer improvements in the owning plugin's shared interoperability contract instead of permanent Agent-specific SQL adapters.
+
+Menu is intentionally moved **before** this generic post-1.0 list because it is the reference case for a non-content structured provider and should help validate the provider-family architecture before 1.0.
 
 ## 1.2 — Rich Hub/context integration
 
@@ -590,6 +525,21 @@ read
 -> explicit publish/send actions
 ```
 
+For Menu, future write capabilities may eventually include narrowly scoped operations such as:
+
+```text
+menu.create
+menu.update
+menu.element.create
+menu.element.update
+menu.element.move
+menu.element.delete
+menu.activate
+menu.deactivate
+```
+
+These must reuse Menu's own validation/business logic and independently enforce `menu.admin`. Public `navigation.read` must never imply any of these actions.
+
 No generic execution primitives such as SQL, PHP, shell or unrestricted filesystem operations.
 
 Authenticated configuration controls must not appear before the corresponding authenticated action model is implemented.
@@ -605,17 +555,13 @@ Agent's internal model should be reusable by:
 - automation platforms;
 - trusted custom applications.
 
-Protocol support must remain an adapter over Agent resources/capabilities/actions rather than redefine plugin contracts or Agent's normalized model.
-
-Agent may host optional protocol modules for deployment convenience, but protocol versioning and client-specific schemas must remain isolated from Agent core.
+Protocol support must remain an adapter over Agent resources/capabilities/actions rather than redefine plugin contracts or Agent's normalized models.
 
 ---
 
 ## Replacement principle
 
-Agent is **not a migration wrapper around the current LLM scripts**.
-
-The previous system may be studied to identify useful outcomes such as topic discovery, popular content, recent content and site description, but Agent should implement those needs from first principles using Geeklog context and shared interoperability contracts.
+Agent is **not a migration wrapper around the previous LLM scripts**.
 
 The target state is:
 
@@ -628,21 +574,12 @@ shared interoperability contracts
         ↓
       Agent
         ↓
-normalized resources / capabilities / actions
+normalized resources / structured providers / capabilities / actions
         ↓
 llms.txt / Markdown / JSON / MCP / connectors / future adapters
 ```
 
-There must be no runtime dependency on:
-
-```text
-legacy llms.php
-legacy llm-dynamic.php
-hostname switch registry
-legacy per-site LLM text files
-```
-
-Manual site-specific configuration should be limited to genuinely editorial information or explicit curation that cannot be derived reliably from Geeklog itself.
+There must be no runtime dependency on legacy LLM scripts, hostname switch registries or legacy per-site LLM text files.
 
 ---
 
