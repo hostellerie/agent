@@ -46,7 +46,7 @@ Agent should support more than content providers:
 ```text
 content       addressable editorial/content resources
 navigation    structured permission-filtered navigation
-a relationship contextual graph/relationship information
+relationship contextual graph/relationship information
 service       bounded plugin services/capabilities
 ```
 
