@@ -151,6 +151,9 @@ category
 topic
 hits
 visibility
+is_container
+parent_id
+parent_subtype
 capabilities
 ```
 
@@ -202,6 +205,30 @@ service       bounded plugin services/capabilities
 ```
 
 Each family may use a different owning-plugin contract while sharing common discovery, permission and adapter rules.
+
+### Addressable public resources
+
+The content family must support provider-owned addressable containers as well as leaf items.
+
+Examples include:
+
+```text
+root/catalogue
+category
+album
+forum
+channel
+map
+marker
+topic
+terminal content
+```
+
+Agent should normalize these through the shared Item Info contract when the provider exposes them. Recommended additive resource fields are `is_container`, `parent_id`, and `parent_subtype`, with `subtype` identifying the provider-owned object family.
+
+Agent must not hard-code Documents, MediaGallery, Forum, Maps, Videos, Classifieds, Contact or another plugin's routing/table structure. The owning provider exposes stable IDs, titles, canonical URLs and hierarchy hints.
+
+The provider registry should progressively move away from a manually enumerated Agent-only catalogue when shared capability discovery can identify active providers exposing `content.read` / `content.collection`.
 
 ### Menu reference integration
 
