@@ -41,6 +41,38 @@ plugin_dopluginsearch_PLUGIN()
 
 The provider remains responsible for access checks. Agent should normalize only successful, authorized results.
 
+#### Addressable containers and public surfaces
+
+Content providers may expose more than terminal editorial items. Agent should accept provider-owned resources such as:
+
+```text
+root/catalogue
+category
+album
+forum
+channel
+map
+marker
+topic
+product/classified
+terminal item
+```
+
+when they are stable, public/addressable and permission-aware.
+
+Recommended additive content fields are:
+
+```text
+subtype
+is-container
+parent-id
+parent-subtype
+```
+
+Agent must not invent provider-private identities. If the provider needs subtype-safe IDs because some Geeklog APIs carry only `type + id`, it should expose stable namespaced IDs such as `category:12`, `album:45` or `forum:8`.
+
+These resources remain content-family resources because they represent public addressable surfaces. Pure navigation trees, relationship graphs and service/diagnostic structures belong to their own provider families.
+
 ### Navigation providers
 
 Navigation providers expose structure rather than editorial content. They should not be forced into `PLG_getItemInfo()` when that would distort their model.
