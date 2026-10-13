@@ -1,5 +1,11 @@
 # Agent for Geeklog — Development Roadmap
 
+## IA service boundary (13 October 2026)
+
+Agent remains the provider-neutral machine access layer. A **future independent IA plugin** should centralize AI providers/models, generation requests and normalized responses for callers such as Automation and Forum. **Automation** handles workflow orchestration; Hub manages editorial context. Agent must not duplicate the IA provider gateway or workflow engine.
+
+**Before extracting anything**, audit the existing LLM-related work **within this Agent repository** (there is no separate LLM GitHub repository), identify reusable code and interfaces, and preserve existing features and contracts. This is architectural planning only; it does not assert that IA is implemented.
+
 ## Vision
 
 Agent is the **provider-neutral machine access layer** for Geeklog.
